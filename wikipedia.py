@@ -29,7 +29,8 @@ class LogParser:
 
     def getFiles(self, directory):
         for (dirpath, dirnames, filenames) in walk(directory):
-            return filenames
+            for fname in filenames:
+                yield os.path.join(dirpath, fname)
 
     def getContents(self, files, directory):
         contents = ""
@@ -43,12 +44,10 @@ class LogParser:
     def clear(self):
         self.result = []
 
-    def parseFile(self, fileName, directory):
+    def parseFile(self, fileName):
         contents = ""
 
-        print(directory + fileName)
-
-        with open(directory + fileName) as f:
+        with open(fileName) as f:
             contents = f.read()
 
         if not contents.startswith('[['):
@@ -69,10 +68,10 @@ class LogParser:
         self.result = []
 
         try:
-            for i in files:
-                self.parseFile(i, directory)
+            for fname in files:
+                self.parseFile(fname)
         except SyntaxError as e:
-            print str(e)
+            print(str(e))
 
         counts = [len(i) for i in self.result]
 
@@ -317,7 +316,7 @@ class WikipediaTracer:
         while href != self.target:
             links = webutil.get_links("http://en.wikipedia.org" + href)
             links = filter(lambda link: link.in_paragraph or link.in_list, links)
-            links = filter(lambda link: 'mw-content-text' in link.divs and not 'catlinks' in link.divs, links)
+            links = filter(lambda link: 'mw-content-ltr' in link.divs and not 'catlinks' in link.divs, links)
             links = filter(lambda link: not link.in_table and not link.in_tr and not link.in_parentheses, links)
             links = filter(lambda link: not any(map(lambda beginning: link.href.startswith(beginning), IGNORE_BEGINNINGS)), links)
             links = filter(lambda link: not link.href.startswith('#') and not 'cite_note' in link.href, links) # We don't want any cite notes and such
@@ -365,6 +364,9 @@ Parser = LogParser()
 if __name__ == '__main__':
     args = utility.command_line_args(sys.argv)
 
+    if 'build-cache' in args:
+        Tracer.buildCacheFromDirectory(args['build-cache'])
+
     if 'target' in args:
         Tracer.set_target(args['target'])
 
@@ -384,3 +386,4 @@ if __name__ == '__main__':
         Tracer.infiniteSearch('logs/{}/{}/'.format(date_string, time_string))
     elif 'search' in args or 'find' in args:
         Tracer.find()
+
